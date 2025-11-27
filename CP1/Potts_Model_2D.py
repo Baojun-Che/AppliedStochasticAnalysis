@@ -3,20 +3,30 @@ import numpy as np
 import time
 
 class PottsModel2D:
-    def __init__(self, N, q, J=1.0, h=0.0):
+    def __init__(self, N, q, J=1.0, h=0.0, lattice = None):
         self.N = N
         self.q = q
         self.J = J
         self.h = h
-        self.lattice = np.random.randint(1, q+1, size=(N, N))
         self.k_beta = 1.0 
         self.beta = 1.0
+        self.field = False
+        if np.abs(h) > 1e-4:
+            self.field = True
+        if lattice is not None:
+            if lattice.shape != (N, N):
+                raise ValueError(f"传入的lattice尺寸 {lattice.shape} 与指定的N={N}不匹配")
+            if np.any(lattice < 1) or np.any(lattice > q):
+                raise ValueError(f"lattice中的值必须在1到{q}之间")
+            self.lattice = lattice.copy()
+        else:
+            self.lattice = np.random.randint(1, q+1, size=(N, N))
+
         
-    def set_beta(self, T):
+    def set_temperature(self, T):
         self.beta = 1.0 /(self.k_beta * T)
     
-    def wolff_flip(self):
-
+    def wolff_flip(self, get_delta_H = False):
         N, q, beta, J = self.N, self.q, self.beta, self.J
         
         i, j = np.random.randint(0, N, 2)
@@ -35,7 +45,7 @@ class PottsModel2D:
             for nb in neighbors:
                 ni, nj = nb
                 if nb not in current_set and self.lattice[ni, nj] == old_spin:
-                    if np.random.random() <  1.0 - np.exp(-beta * J):
+                    if np.random.random() < 1.0 - np.exp(-beta * J):
                         current_set.add(nb)
                         boundary.add(nb)
         
@@ -43,18 +53,48 @@ class PottsModel2D:
         while new_spin == old_spin:
             new_spin = np.random.randint(1, q+1)
         
+        energy_before = 0.0
+        energy_after = 0.0
+
+        if get_delta_H:
+            for site in current_set:
+                i, j = site
+                neighbors = [((i+1)%N, j), ((i-1)%N, j), (i, (j+1)%N), (i, (j-1)%N)]
+                
+                for nb in neighbors:
+                    if nb not in current_set:
+                        ni, nj = nb
+                        neighbor_spin = self.lattice[ni, nj]
+                        
+                        # 翻转前：所有current_set内自旋都是old_spin
+                        if neighbor_spin == old_spin:
+                            energy_before -= J
+                        
+                        # 翻转后：所有current_set内自旋变为new_spin
+                        if neighbor_spin == new_spin:
+                            energy_after -= J
+            
+                # 外场贡献
+                energy_before -= self.h * old_spin
+                energy_after -= self.h * new_spin
+        
+        # 应用翻转
         for site in current_set:
             i, j = site
             self.lattice[i, j] = new_spin
+        
+        delta_H = energy_after - energy_before
+        return delta_H
     
     def metropolis_flip(self):
         N = self.N
+        total_delta_H = 0.0
         for _ in range(N*N):
             i, j = np.random.randint(0, N, 2)
             old_spin = self.lattice[i, j]
             new_spin = np.random.randint(1, self.q+1)
             
-            delta_H = 0
+            delta_H = 0.0
             
             neighbors = [((i+1)%N, j), ((i-1)%N, j), (i, (j+1)%N), (i, (j-1)%N)]
             for nb in neighbors:
@@ -68,7 +108,11 @@ class PottsModel2D:
             
             if delta_H <= 0 or np.random.random() < np.exp(-self.beta * delta_H):
                 self.lattice[i, j] = new_spin
+                total_delta_H += delta_H
+
+        return total_delta_H
     
+
     def func_H(self):
         """Hamiltonian量"""
         N = self.N
@@ -108,8 +152,9 @@ def temperature_scheduler(iter, n_iter, T_min, T_max, n_decay):
         return T_min + 0.5 * (T_max - T_min) * (1 + np.cos(np.pi * (iter - (n_iter - n_decay)) / n_decay))
 
 
-def MCMC_simulation(N, q, T, h, n_tempering, n_measure, n_step=5,
-                            mes_energy = True, mes_manetization = False, corr_k = []):
+def mcmc_without_external_field(N, q, T,
+    n_tempering=500, n_measure=1000, n_step=1, RATE = 3,
+    lattice = None, mes_energy = True, mes_manetization = False, corr_k = [], get_energy = False):
 
     results = {
         'temperature': T,
@@ -117,12 +162,103 @@ def MCMC_simulation(N, q, T, h, n_tempering, n_measure, n_step=5,
         'specific_heat': 0,
         'magnetization': 0,
         'corr_k': corr_k,
-        'corr_gamma': np.zeros(len(corr_k))
+        'corr_gamma': np.zeros(len(corr_k)),
+        'Hamilton': []
     }
     
-    print(f"MCMC模拟, q={q}, T={T:.3f}, 测量共{n_measure}次")
+    print(f"{N}*{N} Potts模型MCMC: q={q}, T={T:.3f}, 测量共{n_measure}次")
     
-    model = PottsModel2D(N, q, h = h)
+    model = PottsModel2D(N, q, lattice= lattice)
+    
+    # 热化过程
+    n_decay = round(n_tempering * 0.2) 
+    T_min, T_max = T, max(1.5*T, 2.0)
+    for step in range(n_tempering):
+
+        T_tempering = temperature_scheduler(step, n_tempering, T_min, T_max, n_decay)
+        model.set_temperature(T_tempering)
+        model.wolff_flip()
+    
+    
+    # 迭代测量过程
+    model.set_temperature(T)
+
+    energies = np.zeros(n_measure)
+    manetizations = 0
+    if len(corr_k)>0:
+        lattice_sum = np.zeros((N, N))
+        multiple_dis_k = np.zeros(len(corr_k))
+
+    for step in range((RATE-1)*n_measure):
+        for _ in range(n_step):
+            model.wolff_flip()
+
+    H = model.func_H()
+    
+    # 后(1/RATE)时间, 测量物理量并记录
+    for step in range(n_measure):            
+
+        for _ in range(n_step):
+            H += model.wolff_flip(get_delta_H = mes_energy)
+            
+        if mes_energy:
+            energy = H
+            energies[step] = energy
+        if mes_manetization:
+            manetizations += model.spin_sum()
+        if len(corr_k)>0:
+            multiple_dis_k += model.correlation_compute(corr_k)
+            lattice_sum += model.lattice
+
+        if (step+1) % (n_measure/5) == 0:
+            if mes_energy:
+                print(f"迭代至第{((RATE-1)*n_measure+step+1)*n_step}/{RATE*n_measure*n_step}步, Hamilton量={energy}")
+            else:
+                print(f"迭代至第{((RATE-1)*n_measure+step+1)*n_step}/{RATE*n_measure*n_step}步")
+
+    # 计算统计量
+    internal_energy = np.mean(energies) / (N**2)
+    specific_heat = np.cov(energies) * model.k_beta * model.beta**2 / (N**2)
+    manetizations /= n_measure * N**2
+    if len(corr_k)>0:
+        multiple_dis_k /= 2 *n_measure * N**2
+        lattice_sum /= 2 *n_measure**2 * N**2
+        for id in range(0,len(corr_k)):
+            k = corr_k[id]
+            for i in range(N):
+                for j in range(N):
+                    multiple_dis_k[id] -= lattice_sum[i,j] * (lattice_sum[(i+k)%N, j] + lattice_sum[i, (j+k)%N])
+    
+    results['internal_energy'] = internal_energy
+    results['specific_heat'] = specific_heat
+    results['magnetization'] = manetizations
+    if len(corr_k)>0:
+        results['corr_gamma'] = multiple_dis_k
+    
+    if get_energy:
+        return results, energies, model.lattice
+    else:
+        return results
+
+
+
+
+def mcmc_with_external_field(N, q, T, h,  n_tempering=50, n_measure=200,
+        n_step=5, lattice = None, mes_energy = True, mes_manetization = False, corr_k = [], get_energy = False):
+
+    results = {
+        'temperature': T,
+        'internal_energy': 0,
+        'specific_heat': 0,
+        'magnetization': 0,
+        'corr_k': corr_k,
+        'corr_gamma': np.zeros(len(corr_k)),
+        'Hamilton': []
+    }
+    
+    print(f"MCMC模拟: q={q}, T={T:.3f}, 测量共{n_measure}次")
+    
+    model = PottsModel2D(N, q, h = h, lattice = lattice)
     
     # 热化过程
     n_decay = round(n_tempering * 0.2) 
@@ -132,12 +268,11 @@ def MCMC_simulation(N, q, T, h, n_tempering, n_measure, n_step=5,
         T_tempering = temperature_scheduler(step, n_tempering, T_min, T_max, n_decay)
         model.set_temperature(T_tempering)
 
-        model.wolff_step()
-        if model.h != 0:
-            model.metropolis_step()
+        model.wolff_flip()
+        model.metropolis_flip()
     
     
-    # 测量过程
+    # 迭代测量过程
     model.set_temperature(T)
 
     energies = np.zeros(n_measure)
@@ -147,30 +282,34 @@ def MCMC_simulation(N, q, T, h, n_tempering, n_measure, n_step=5,
         multiple_dis_k = np.zeros(len(corr_k))
 
     
-    for step in range(n_measure):
+    for step in range(2*n_measure):
         
-        for _ in range(n_step):
-            model.wolff_flip()
-            if model.h != 0:
+        if step < n_measure:
+            for _ in range(n_step):
+                model.wolff_flip()
                 model.metropolis_flip()
-        
-        # 测量物理量
-        energy = 0
-        if mes_energy:
-            energy = model.func_H()
-            energies[step] = energy
-        if mes_manetization:
-            manetizations += model.spin_sum()
-        if len(corr_k)>0:
-            multiple_dis_k += model.correlation_compute(corr_k)
-            lattice_sum += model.lattice
+        else:
+            # 后一半时间, 只物理量并记录
 
-        if step % (n_measure/10) == 0:
+            for _ in range(n_step):
+                model.wolff_flip()
+                model.metropolis_flip()
+            id = step-n_measure
+            energy = 0
             if mes_energy:
-                print(f"测量过程运行至第{step}步, Hamilton量={energy}")
-            else:
-                print(f"测量过程运行至第{step}步")
-        
+                energy = model.func_H()
+                energies[id] = energy
+            if mes_manetization:
+                manetizations += model.spin_sum()
+            if len(corr_k)>0:
+                multiple_dis_k += model.correlation_compute(corr_k)
+                lattice_sum += model.lattice
+
+            if step % (n_measure/5) == 0:
+                if mes_energy:
+                    print(f"迭代至第{(step+1)*n_step}/{2*n_measure*n_step}步, Hamilton量={energy}")
+                else:
+                    print(f"迭代至第{(step+1)*n_step}/{2*n_measure*n_step}步")
 
 
     # 计算统计量
@@ -189,7 +328,10 @@ def MCMC_simulation(N, q, T, h, n_tempering, n_measure, n_step=5,
     results['internal_energy'] = internal_energy
     results['specific_heat'] = specific_heat
     results['magnetization'] = manetizations
-    results['corr_gamma'] = multiple_dis_k
+    if len(corr_k)>0:
+        results['corr_gamma'] = multiple_dis_k
     
-    return results
-
+    if get_energy:
+        return results, energies, model.lattice
+    else:
+        return results

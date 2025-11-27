@@ -1,0 +1,64 @@
+    N = 100  
+    h = 0
+    q = 3
+    ### q=3, T以粗尺度变化
+    # temperatures = np.linspace(0.1, 5.0, 50)
+    # internal_energies, specific_heats = [], []
+    # for T in temperatures:
+    #     results = mcmc_without_external_field(N, q, T, n_tempering=200, n_measure=400)
+    #     internal_energies.append(results['internal_energy'])
+    #     specific_heats.append(results['specific_heat'])
+    #     print(f"u={results['internal_energy']}, c={results['specific_heat']}" )
+    
+    # fig_name = "uc-T,q=3,large"
+    # plot_temperature_enengy(temperatures, internal_energies, specific_heats, fig_name)
+
+
+    ### q=3, T以中等尺度变化
+    # temperatures = np.linspace(0.85, 1.15, 31)
+    # internal_energies, specific_heats = [], []
+    # for T in temperatures:
+    #     results = mcmc_without_external_field(N, q, T, n_tempering=400, n_measure=800)
+    #     internal_energies.append(results['internal_energy'])
+    #     specific_heats.append(results['specific_heat'])
+    #     print(f"u={results['internal_energy']}, c={results['specific_heat']}" )
+    
+    # fig_name = "uc-T,q=3,middle"
+    # plot_temperature_enengy(temperatures, internal_energies, specific_heats, fig_name)
+
+    ### q=3, T以细尺度变化
+    # temperatures = np.linspace(0.950, 1.005, 12)
+    # internal_energies, specific_heats = [], []
+    # for T in temperatures:
+    #     results = mcmc_without_external_field(N, q, T, n_tempering=400, n_measure=1500)
+    #     internal_energies.append(results['internal_energy'])
+    #     specific_heats.append(results['specific_heat'])
+    #     print(f"u={results['internal_energy']}, c={results['specific_heat']}" )
+    
+    # fig_name = "uc-T,q=3,small"
+    # plot_temperature_enengy(temperatures, internal_energies, specific_heats, fig_name)
+    
+    # # 保存为txt文件
+    # data = np.column_stack((temperatures, internal_energies, specific_heats))
+    # np.savetxt('results/q=3,N=100.txt', data, header='Temperature Internal_Energy Specific_Heat', 
+    #        fmt='%.6f', delimiter=' ')
+    
+
+    ###  q=3, T以细尺度变化, 加密到N=1000
+    temperatures = np.linspace(0.950, 1.005, 12)
+    internal_energies, specific_heats = [], []
+
+    _, _, lattice = mcmc_without_external_field(1000, q, 0.95, n_tempering=1000, n_measure=2000, get_energy=True)
+    for T in temperatures:
+        results, _, lattice = mcmc_without_external_field(1000, q, T, lattice = lattice, n_tempering=0, n_measure=10000, get_energy=True)
+        internal_energies.append(results['internal_energy'])
+        specific_heats.append(results['specific_heat'])
+        print(f"u={results['internal_energy']}, c={results['specific_heat']}" )
+    
+    fig_name = "uc-T,q=3,N=1000"
+    plot_temperature_enengy(temperatures, internal_energies, specific_heats, fig_name)
+    
+    # 保存为txt文件
+    data = np.column_stack((temperatures, internal_energies, specific_heats))
+    np.savetxt('results/q=3,N=1000.txt', data, header='Temperature Internal_Energy Specific_Heat', 
+           fmt='%.6f', delimiter=' ')
