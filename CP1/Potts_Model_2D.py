@@ -192,7 +192,7 @@ def mcmc_without_external_field(N, q, T,
     for step in range((RATE-1)*n_measure):
         for _ in range(n_step):
             model.wolff_flip()
-
+        
     H = model.func_H()
     
     # 后(1/RATE)时间, 测量物理量并记录
@@ -222,12 +222,12 @@ def mcmc_without_external_field(N, q, T,
     manetizations /= n_measure * N**2
     if len(corr_k)>0:
         multiple_dis_k /= 2 *n_measure * N**2
-        lattice_sum /= 2 *n_measure**2 * N**2
+        lattice_mean = lattice_sum / n_measure
         for id in range(0,len(corr_k)):
             k = corr_k[id]
             for i in range(N):
                 for j in range(N):
-                    multiple_dis_k[id] -= lattice_sum[i,j] * (lattice_sum[(i+k)%N, j] + lattice_sum[i, (j+k)%N])
+                    multiple_dis_k[id] -= lattice_mean[i,j] * (lattice_mean[(i+k)%N, j] + lattice_mean[i, (j+k)%N]) / (2 * N**2)
     
     results['internal_energy'] = internal_energy
     results['specific_heat'] = specific_heat
@@ -244,17 +244,7 @@ def mcmc_without_external_field(N, q, T,
 
 
 def mcmc_with_external_field(N, q, T, h,  n_tempering=50, n_measure=200,
-        n_step=5, lattice = None, mes_energy = True, mes_manetization = False, corr_k = [], get_energy = False):
-
-    results = {
-        'temperature': T,
-        'internal_energy': 0,
-        'specific_heat': 0,
-        'magnetization': 0,
-        'corr_k': corr_k,
-        'corr_gamma': np.zeros(len(corr_k)),
-        'Hamilton': []
-    }
+        n_step=1, RATE = 3, lattice = None, mes_manetization = False, get_lattice = True):
     
     print(f"MCMC模拟: q={q}, T={T:.3f}, 测量共{n_measure}次")
     
@@ -268,70 +258,39 @@ def mcmc_with_external_field(N, q, T, h,  n_tempering=50, n_measure=200,
         T_tempering = temperature_scheduler(step, n_tempering, T_min, T_max, n_decay)
         model.set_temperature(T_tempering)
 
-        model.wolff_flip()
+        model.wolff_flip(get_delta_H = False)
         model.metropolis_flip()
     
     
     # 迭代测量过程
     model.set_temperature(T)
-
     energies = np.zeros(n_measure)
     manetizations = 0
-    if len(corr_k)>0:
-        lattice_sum = np.zeros((N, N))
-        multiple_dis_k = np.zeros(len(corr_k))
 
-    
-    for step in range(2*n_measure):
+    for step in range((RATE-1)*n_measure):
         
-        if step < n_measure:
-            for _ in range(n_step):
-                model.wolff_flip()
-                model.metropolis_flip()
-        else:
-            # 后一半时间, 只物理量并记录
+        for _ in range(n_step):
+            model.wolff_flip(get_delta_H = False)
+            model.metropolis_flip()
 
-            for _ in range(n_step):
-                model.wolff_flip()
-                model.metropolis_flip()
-            id = step-n_measure
-            energy = 0
-            if mes_energy:
-                energy = model.func_H()
-                energies[id] = energy
-            if mes_manetization:
-                manetizations += model.spin_sum()
-            if len(corr_k)>0:
-                multiple_dis_k += model.correlation_compute(corr_k)
-                lattice_sum += model.lattice
-
-            if step % (n_measure/5) == 0:
-                if mes_energy:
-                    print(f"迭代至第{(step+1)*n_step}/{2*n_measure*n_step}步, Hamilton量={energy}")
-                else:
-                    print(f"迭代至第{(step+1)*n_step}/{2*n_measure*n_step}步")
+    for step in range(n_measure):
+        
+        for _ in range(n_step):
+            model.wolff_flip(get_delta_H = False)
+            model.metropolis_flip()
+            
+        if mes_manetization:
+            manetizations += model.spin_sum()
+       
+        if (step+1) % (n_measure/5) == 0:
+            print(f"迭代至第{((RATE-1)*n_measure+step+1)*n_step}/{RATE*n_measure*n_step}步, Hamilton量={model.func_H()}")
+            
 
 
     # 计算统计量
-    internal_energy = np.mean(energies) / (N**2)
-    specific_heat = np.cov(energies) * model.k_beta * model.beta**2 / (N**2)
     manetizations /= n_measure * N**2
-    if len(corr_k)>0:
-        multiple_dis_k /= 2 *n_measure * N**2
-        lattice_sum /= 2 *n_measure**2 * N**2
-        for id in range(0,len(corr_k)):
-            k = corr_k[id]
-            for i in range(N):
-                for j in range(N):
-                    multiple_dis_k[id] -= lattice_sum[i,j] * (lattice_sum[(i+k)%N, j] + lattice_sum[i, (j+k)%N])
-    
-    results['internal_energy'] = internal_energy
-    results['specific_heat'] = specific_heat
-    results['magnetization'] = manetizations
-    if len(corr_k)>0:
-        results['corr_gamma'] = multiple_dis_k
-    
-    if get_energy:
-        return results, energies, model.lattice
+   
+    if get_lattice:
+        return manetizations, model.lattice
     else:
-        return results
+        return manetizations

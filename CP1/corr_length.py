@@ -55,33 +55,34 @@ def estimate_constant(T_values, y_values, T_star, arg_name):
 # 运行分析
 if __name__ == "__main__":
 
-    # q = 3
-    # N = 100
-    T_star = 0.995
-    # r = 0.05
-
-    # # 在临界区域附近生成T
-    # T_min = T_star * (1 - r)
-    # T_max = T_star * (1 + r)
-    # temperatures = np.linspace(T_min, T_max, 20)
-    # temperatures = temperatures[temperatures != T_star]
-
-    # internal_energies, specific_heats = [], []
-    # _, _, lattice = mcmc_without_external_field(N, q, T_min, n_tempering=500, n_measure=2000, get_energy=True, mes_energy=False)
-    # for T in temperatures:
-    #     results, _, lattice = mcmc_without_external_field(N, q, T, lattice = lattice, n_tempering=0, n_measure=2000, RATE=5, get_energy=True)
-    #     specific_heats.append(results['specific_heat'])
-    #     print(f"c={results['specific_heat']}" )
+    q = 3
+    N = 30
     
-    # data = np.column_stack((temperatures, specific_heats))
-    # np.savetxt('results/reg-gamma.txt', data, header='Temperature Specific_Heats', fmt='%.6f', delimiter=' ')
+    temperatures = [0.7, 0.8, 0.9, 0.95, 1.0, 1.05, 1.1]
+    # temperatures = [0.9, 0.95, 1.0, 1.05, 1.1]
+
+    corr_k = np.arange(5, 15, 1)
+    corr_length = []
+    r_square = []
+    # _, _, lattice = mcmc_without_external_field(N, q, np.min(temperatures), n_tempering=200, n_measure=10000, RATE=1, mes_energy=False, get_energy=True)
+    # np.save('lattice/N=100,T=0.50.npy', lattice)
+    # lattice =  np.load('lattice/N=100,T=0.50.npy')
+
+    for T in temperatures:
+        results,_,lattice = mcmc_without_external_field(N, q, T, n_tempering=0 , n_measure=200, RATE=5, n_step=10, mes_energy=False, corr_k=corr_k, get_energy=True)
+        corr_gamma = np.maximum(results["corr_gamma"], 1e-8)
+        reg = stats.linregress(corr_k, np.log(corr_gamma))
+        print(corr_gamma)
+        print(f"回归R²值: {reg.rvalue**2}, p值: {reg.pvalue}. 相干长度 = {-1/reg.slope}")
+        corr_length.append(-1/reg.slope)
+        r_square.append(reg.rvalue**2)
+
+    temperatures = np.array(temperatures)
+    r_square = np.array(r_square)
+    corr_length = np.array(corr_length)
+    indice =  np.where(r_square > 0.75)[0]
+
+    data = np.column_stack((temperatures[indice], corr_length[indice], r_square[indice]))
+    np.savetxt('results/q=3,corr_len.txt', data, header='Temperature Correlation_Length Reg_R_Square', fmt='%.6f', delimiter=' ')
     
-    data = np.loadtxt('results//reg-gamma.txt', skiprows=1)
-    gamma_est = estimate_constant(data[:,0], data[:,1], T_star, "gamma")
-
-    mask = data[:,0] < 1.015
-    last_index = len(data[:,0]) - np.argmax(mask[::-1])
-    gamma_est = estimate_constant(data[0:last_index,0], data[0:last_index,1], T_star, "gamma")
-
-    print(gamma_est)
     
