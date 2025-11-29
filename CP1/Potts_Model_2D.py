@@ -137,9 +137,11 @@ class PottsModel2D:
         N = self.N
         for id in range(0,len(corr_k)):
             k = corr_k[id]
+            di, dj = k//2, k-k//2
             for i in range(N):
                 for j in range(N):
-                    corr_gamma_[id] += self.lattice[i,j] * (self.lattice[(i+k)%N, j] + self.lattice[i, (j+k)%N])
+                    temp = self.lattice[(i+k)%N, j] + self.lattice[i, (j+k)%N]+ self.lattice[(i+di)%N,(j+dj)%N] + self.lattice[(i-dj)%N,(j+di)%N]
+                    corr_gamma_[id] += self.lattice[i,j] * temp
         return corr_gamma_
 
 
@@ -221,13 +223,16 @@ def mcmc_without_external_field(N, q, T,
     specific_heat = np.cov(energies) * model.k_beta * model.beta**2 / (N**2)
     manetizations /= n_measure * N**2
     if len(corr_k)>0:
-        multiple_dis_k /= 2 *n_measure * N**2
+        multiple_dis_k /= 4 *n_measure * N**2
         lattice_mean = lattice_sum / n_measure
         for id in range(0,len(corr_k)):
             k = corr_k[id]
+            di, dj = k//2, k-k//2
+            
             for i in range(N):
                 for j in range(N):
-                    multiple_dis_k[id] -= lattice_mean[i,j] * (lattice_mean[(i+k)%N, j] + lattice_mean[i, (j+k)%N]) / (2 * N**2)
+                    temp = lattice_mean[(i+k)%N, j] + lattice_mean[i, (j+k)%N]+ lattice_mean[(i+di)%N,(j+dj)%N] + lattice_mean[(i-dj)%N,(j+di)%N]
+                    multiple_dis_k[id] -= lattice_mean[i,j] * temp / (4 * N**2)
     
     results['internal_energy'] = internal_energy
     results['specific_heat'] = specific_heat
