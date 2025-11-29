@@ -27,7 +27,7 @@
     # plot_temperature_enengy(temperatures, internal_energies, specific_heats, fig_name)
 
     ### q=3, T以细尺度变化
-    # temperatures = np.linspace(0.950, 1.005, 12)
+    # temperatures = np.linspace(0.950, 1.000, 11)
     # internal_energies, specific_heats = [], []
     # for T in temperatures:
     #     results = mcmc_without_external_field(N, q, T, n_tempering=400, n_measure=1500)

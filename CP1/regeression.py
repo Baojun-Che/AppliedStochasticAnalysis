@@ -6,7 +6,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def estimate_constant(T_values, y_values, T_star, arg_name):
+def estimate_constant(T_values, y_values, T_star, arg_name, fig_name):
     
     logT = np.log(np.abs(1 - T_values / T_star))
     logy = np.log(y_values)
@@ -43,7 +43,7 @@ def estimate_constant(T_values, y_values, T_star, arg_name):
     plt.legend()
     
     plt.tight_layout()
-    plt.savefig(f"results/epsilon+{arg_name}.pdf")
+    plt.savefig(fig_name)
     plt.show()
     
     print("回归结果:")
@@ -74,14 +74,40 @@ if __name__ == "__main__":
     #     print(f"c={results['specific_heat']}" )
     
     # data = np.column_stack((temperatures, specific_heats))
-    # np.savetxt('results/reg-gamma.txt', data, header='Temperature Specific_Heats', fmt='%.6f', delimiter=' ')
+    # np.savetxt('results/reg-gamma-q=3.txt', data, header='Temperature Specific_Heats', fmt='%.6f', delimiter=' ')
     
-    data = np.loadtxt('results//reg-gamma.txt', skiprows=1)
-    gamma_est = estimate_constant(data[:,0], data[:,1], T_star, "gamma")
+    data = np.loadtxt('results/reg-gamma-q=3.txt', skiprows=1)
+    gamma_est = estimate_constant(data[:,0], data[:,1], T_star, "c", "reg-gamma-q=3-wrong.pdf")
 
     mask = data[:,0] < 1.015
     last_index = len(data[:,0]) - np.argmax(mask[::-1])
-    gamma_est = estimate_constant(data[0:last_index,0], data[0:last_index,1], T_star, "gamma")
+    gamma_est = estimate_constant(data[0:last_index,0], data[0:last_index,1], T_star, "c", "reg-gamma-q=3.pdf")
 
-    print(gamma_est)
+    # print(gamma_est)
     
+    # T_star = 0.705
+    # q = 10
+    # N = 100
+    # r = 0.05
+
+    # # 在临界区域附近生成T
+    # T_min = T_star * (1 - r)
+    # T_max = T_star * (1 + r)
+    # temperatures = np.linspace(T_min, T_max, 20)
+    # temperatures = temperatures[temperatures != T_star]
+
+    # internal_energies, specific_heats = [], []
+    # _, _, lattice = mcmc_without_external_field(N, q, T_min, n_tempering=500, n_measure=2000, get_energy=True, mes_energy=False)
+    # for T in temperatures:
+    #     results, _, lattice = mcmc_without_external_field(N, q, T, lattice = lattice, n_tempering=0, n_measure=4000, RATE=5, get_energy=True)
+    #     specific_heats.append(results['specific_heat'])
+    #     print(f"c={results['specific_heat']}" )
+    
+    # data = np.column_stack((temperatures, specific_heats))
+    # np.savetxt('results/reg-gamma-q=10.txt', data, header='Temperature Specific_Heats', fmt='%.6f', delimiter=' ')
+    
+    # data = np.loadtxt('results/reg-gamma-q=10.txt', skiprows=1)
+    # gamma_est = estimate_constant(data[:,0], data[:,1], T_star, "c", "results/reg-gamma-q=10-wrong.pdf")
+    
+    # indice = np.where((data[:,1] <= 10) & (data[:,0] < T_star))
+    # gamma_est = estimate_constant(data[indice,0], data[indice,1], T_star, "c", "results/reg-gamma-q=10.pdf")

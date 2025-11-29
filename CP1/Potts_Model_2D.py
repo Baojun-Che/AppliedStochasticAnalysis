@@ -249,7 +249,7 @@ def mcmc_without_external_field(N, q, T,
 
 
 def mcmc_with_external_field(N, q, T, h,  n_tempering=50, n_measure=200,
-        n_step=1, RATE = 3, lattice = None, mes_manetization = False, get_lattice = True):
+        n_step=1, RATE = 3, lattice = None, mes_manetization = True, get_lattice = False):
     
     print(f"MCMC模拟: q={q}, T={T:.3f}, 测量共{n_measure}次")
     

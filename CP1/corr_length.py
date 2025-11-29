@@ -58,7 +58,7 @@ if __name__ == "__main__":
     for T in [0.98, 0.95, 0.90, 0.85, 0.8, 0.7, 0.6, 0.5, 0.4]:
         corr_gamma = np.zeros(len(corr_k))
         for i in range(5):
-            results,_,lattice = mcmc_without_external_field(N, q, T, n_tempering=0, n_measure=1000, RATE=4, n_step=2, mes_energy=False, corr_k=corr_k, get_energy=True, lattice=lattice_0)
+            results,_,lattice = mcmc_without_external_field(N, q, T, n_tempering=0, n_measure=1000, RATE=2, n_step=1, mes_energy=False, corr_k=corr_k, get_energy=True, lattice=lattice_0)
             corr_gamma += np.maximum(results["corr_gamma"], 0)
         lattice_0 = lattice
         corr_gamma /= 5
