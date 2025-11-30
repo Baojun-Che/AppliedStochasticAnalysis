@@ -64,44 +64,44 @@ def plot_data_from_file(filename, fig_name):
 
 
 if __name__ == "__main__":
-    # N = 100
-    # q = 3
-    # tempratures = np.array([0.5, 0.8, 0.995, 1.2, 1.5])
-    # h_list = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
-    # N_T, N_h = len(tempratures), len(h_list)
-    # data = np.zeros((N_T, N_h))
-    # for iT in range(N_T):
-    #     for ih in range(N_h):
-    #         T = tempratures[iT]
-    #         h = h_list[ih]
-    #         temp = mcmc_with_external_field(N,q,T,h,n_tempering=100,n_measure=500,RATE=2)
-    #         print(f"T={T},h={h}, manetization={temp}")
-    #         data[iT,ih] = temp
+    N = 100
+    q = 3
+    tempratures = np.array([0.5, 0.8, 0.995, 1.2, 1.5])
+    h_list = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
+    N_T, N_h = len(tempratures), len(h_list)
+    data = np.zeros((N_T, N_h))
+    for iT in range(N_T):
+        for ih in range(N_h):
+            T = tempratures[iT]
+            h = h_list[ih]
+            temp = mcmc_with_external_field(N,q,T,h,n_tempering=100,n_measure=500,RATE=2)
+            print(f"T={T},h={h}, manetization={temp}")
+            data[iT,ih] = temp
 
-    # with open('results/manetization-q=3.txt', 'w') as f:
-    #     np.savetxt(f, tempratures.reshape(1, -1), fmt='%g')
-    #     np.savetxt(f, h_list.reshape(1, -1), fmt='%g')
-    #     np.savetxt(f, data, fmt='%g')
+    with open('results/manetization-q=3.txt', 'w') as f:
+        np.savetxt(f, tempratures.reshape(1, -1), fmt='%g')
+        np.savetxt(f, h_list.reshape(1, -1), fmt='%g')
+        np.savetxt(f, data, fmt='%g')
 
 
-    # N = 100
-    # q = 10
-    # tempratures = np.array([0.5, 0.6, 0.705, 0.8, 0.9])
-    # h_list = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
-    # N_T, N_h = len(tempratures), len(h_list)
-    # data = np.zeros((N_T, N_h))
-    # for iT in range(N_T):
-    #     for ih in range(N_h):
-    #         T = tempratures[iT]
-    #         h = h_list[ih] 
-    #         temp = mcmc_with_external_field(N,q,T,h,n_tempering=200,n_measure=1000,RATE=3)
-    #         print(f"T={T},h={h}, manetization={temp}")
-    #         data[iT,ih] = temp
+    N = 100
+    q = 10
+    tempratures = np.array([0.5, 0.6, 0.705, 0.8, 0.9])
+    h_list = np.array([-2, -1, -0.5, 0, 0.5, 1, 2])
+    N_T, N_h = len(tempratures), len(h_list)
+    data = np.zeros((N_T, N_h))
+    for iT in range(N_T):
+        for ih in range(N_h):
+            T = tempratures[iT]
+            h = h_list[ih] 
+            temp = mcmc_with_external_field(N,q,T,h,n_tempering=200,n_measure=1000,RATE=3)
+            print(f"T={T},h={h}, manetization={temp}")
+            data[iT,ih] = temp
 
-    # with open('results/manetization-q=10.txt', 'w') as f:
-    #     np.savetxt(f, tempratures.reshape(1, -1), fmt='%g')
-    #     np.savetxt(f, h_list.reshape(1, -1), fmt='%g')
-    #     np.savetxt(f, data, fmt='%g')
+    with open('results/manetization-q=10.txt', 'w') as f:
+        np.savetxt(f, tempratures.reshape(1, -1), fmt='%g')
+        np.savetxt(f, h_list.reshape(1, -1), fmt='%g')
+        np.savetxt(f, data, fmt='%g')
 
     plot_data_from_file("results/manetization-q=3.txt", "results/manetization-q=3.pdf")
     plot_data_from_file("results/manetization-q=10.txt", "results/manetization-q=10.pdf")
