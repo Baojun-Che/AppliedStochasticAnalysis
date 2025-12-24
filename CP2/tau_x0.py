@@ -11,20 +11,20 @@ if __name__ == "__main__":
     xx = np.linspace(0.05, 2.0, N_x)
     eps_array = np.array([0.25, 0.5, 1.0, 2.0])
 
-    # os.makedirs("data", exist_ok=True)
-    # with open("data/tau-x0.txt", "w") as file:
-    #     file.write("Epsilon\tx_0\tT_Value\n")
-    #     for eps in eps_array:
-    #         print(f"Running for eps = {eps}")
-    #         for x in xx:
-    #             x0 = np.array([x, 0.0])
-    #             T_val, _, success_rate = estimate_mean_stopping_time(x0, eps, dt=0.001, n_sim=500)
-    #             if success_rate < 0.75:
-    #                 warnings.warn(f"Success rate = {success_rate} for x = {x} !")
-    #             else:
-    #                 print(f"Mean stopping time = {T_val} for x = {x}")
-    #                 # 把 x, y, T_val 输出到 data/tau-x0.txt
-    #                 file.write(f"{eps:.2f} {x:.2f} {T_val:.6f}\n")
+    os.makedirs("data", exist_ok=True)
+    with open("data/tau-x0.txt", "w") as file:
+        file.write("Epsilon\tx_0\tT_Value\n")
+        for eps in eps_array:
+            print(f"Running for eps = {eps}")
+            for x in xx:
+                x0 = np.array([x, 0.0])
+                T_val, _, success_rate = estimate_mean_stopping_time(x0, eps, dt=0.001, n_sim=500)
+                if success_rate < 0.75:
+                    warnings.warn(f"Success rate = {success_rate} for x = {x} !")
+                else:
+                    print(f"Mean stopping time = {T_val} for x = {x}")
+                    # 把 x, y, T_val 输出到 data/tau-x0.txt
+                    file.write(f"{eps:.2f} {x:.2f} {T_val:.6f}\n")
     
     data = np.loadtxt("data/tau-x0.txt", skiprows=1)
 

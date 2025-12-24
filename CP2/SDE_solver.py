@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import os
 from scipy.stats import multivariate_normal
 
 def func_Prob(x, y): ## desity function, ignore constant
@@ -18,11 +19,11 @@ def grad_V(X):
     dy = y
     return np.array([dx, dy])
 
-# ---------- 单次模拟（带线性插值） ----------
 def simulate_one_path(X0, eps, dt:0.1, max_time:100):
     X = np.array(X0, dtype=float)
     t = 0.0
     prev_X = X[0]
+    assert prev_X >= 0, "x分量初值小于0!"
     prev_t = t
 
     while t < max_time:
@@ -31,7 +32,7 @@ def simulate_one_path(X0, eps, dt:0.1, max_time:100):
         X_new = X + drift * dt + dW
         t_new = t + dt
 
-        # 检查是否穿过零（从正到非正）
+        # 检查是否穿过零
         if prev_X > 0 and X_new[0] <= 0:
             # 线性插值估计穿零时间
             if prev_X - X_new[0] >= 1e-6 :
@@ -40,7 +41,6 @@ def simulate_one_path(X0, eps, dt:0.1, max_time:100):
                 tau = t_new
             return tau
 
-        # 更新
         prev_X = X_new[0]
         prev_t = t_new
         X = X_new
@@ -48,7 +48,6 @@ def simulate_one_path(X0, eps, dt:0.1, max_time:100):
 
     return None  # 未在 max_time 内穿过
 
-# ---------- 多次模拟 ----------
 def estimate_mean_stopping_time(X0, eps, dt=0.001, max_time=100.0, n_sim=1000):
     taus = []
     for i in range(n_sim):
@@ -67,20 +66,19 @@ def estimate_mean_stopping_time(X0, eps, dt=0.001, max_time=100.0, n_sim=1000):
     success_rate = len(taus) / n_sim
     return mean_tau, std_tau, success_rate
 
-# ---------- 主程序 ----------
 if __name__ == "__main__":
+
     eps = 0.1
-    X0 = [1.0, 0.0]  # X0[0] > 0
-    dt = 0.001      # 更小 dt 提高精度
-    max_time = 100.0  
-    n_sim = 2000     # 模拟次数
-
-    print("Running simulations...")
-    mean_tau, std_tau, success_rate = estimate_mean_stopping_time(
-        X0, eps, dt=dt, max_time=max_time, n_sim=n_sim
-    )
-
-    print(f"\n结果 (ε = {eps}, X0 = {X0}):")
-    print(f"成功穿越比例: {success_rate:.2%}")
-    print(f"平均停时 τ: {mean_tau:.4f}")
-    print(f"标准差:       {std_tau:.4f}")
+    dt = 0.001
+    x0 = [1.0, 0.0]
+    max_time_array = [10.0, 20.0, 40.0, 80.0]  
+    n_sim = 500
+    
+    os.makedirs("data", exist_ok=True)
+    with open("data/init_test.txt", "w") as file:
+        file.write("Max_Time T_Value T_std Success_Rate\n")
+        for max_time in max_time_array:
+            print(f"Running with max time = {max_time}")
+            T_mean, T_std, success_rate = estimate_mean_stopping_time(x0, eps, dt=dt, n_sim=n_sim, max_time=max_time)
+            file.write(f"{max_time:.3f} & {T_mean:.3f} & {T_std:.3f} & {success_rate*100:.2f}%\n")
+            
